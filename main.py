@@ -37,24 +37,25 @@ auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
 auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
 
 api = tweepy.API(auth)
-
+my_id = api.me().id
 
 class StreamListener(tweepy.StreamListener):
     # リプライで来た画像を保存
+
     def on_status(self, status):
         if str(status.in_reply_to_screen_name) == 'kaira_nf':
             if 'media' in status.entities:
                 medias = status.entities['media']
                 m = medias[0]
                 media_url = m['media_url']
-                print("ツイートを確認:", media_url)
+                #print("ツイートを確認:", media_url)
                 try:
                     body = "{{\"url\":\"{}\"}}".format(media_url)
                     conn = http.client.HTTPSConnection('eastasia.api.cognitive.microsoft.com')
                     conn.request("POST", "/vision/v1.0/analyze?%s" % params, body, headers)
                     response = conn.getresponse()
                     data = response.read()
-                    print(data)
+                    #print(data)
                     conn.close()
                 except Exception as e:
                     print("[Errno {0}] {1}".format(e.errno, e.strerror))
@@ -64,10 +65,20 @@ class StreamListener(tweepy.StreamListener):
                     confidence = responseList['description']['captions'][0]['confidence']
                     description = responseList['description']['captions'][0]['text']
                     tweet = '@' + str(status.user.screen_name) + ' この写真は「' + description + '」ですね！ ' + '（自信:' + str(int(confidence*100)) + '%）'
-                    print(tweet)
+                    #print(tweet)
                     api.update_status(status=tweet, in_reply_to_status_id=status.id)
                 except Exception as e:
                     print("ツイート失敗")
+
+    def on_event(self, event):
+        if event.event == 'follow':
+            source_user = event.source
+            if my_id != source_user["id"]:
+                try:
+                    api.create_friendship(source_user["id"])
+                    # print("followed @{}".format(source_user["screen_name"]))
+                except Exception as e:
+                    print("フォロー失敗", e)
 
     def on_error(self, status_code):
         print('エラー発生: ' + str(status_code))
@@ -97,10 +108,10 @@ class StreamListener(tweepy.StreamListener):
         print('例外エラー:' + str(exception))
         return
 
+listener = StreamListener()
+stream = tweepy.Stream(auth, listener)
 while True:
     try:
-        listener = StreamListener()
-        stream = tweepy.Stream(auth, listener)
         stream.userstream()
     except:
         pass
