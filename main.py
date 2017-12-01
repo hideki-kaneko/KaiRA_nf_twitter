@@ -40,8 +40,6 @@ api = tweepy.API(auth)
 my_id = api.me().id
 
 class StreamListener(tweepy.StreamListener):
-    # リプライで来た画像を保存
-
     def on_status(self, status):
         if str(status.in_reply_to_screen_name) == 'kaira_nf':
             if 'media' in status.entities:
